@@ -6,12 +6,15 @@ char command[100];
 //stack
 typedef struct STACK{
 	char buf[100];
+	char id[7];
 	STACK * next;
 }STACK;
-//function
+//git functions
 STACK* init();
 STACK* commit(STACK* node, char * data);
 void log(STACK* node);
+//functions
+char* genCommitId();
 
 int main(){
 
@@ -41,6 +44,8 @@ int main(){
 			}else{
 				log(node);
 			}
+		}else{
+			printf("없는 명령어이거나 명령어가 잘못되었습니다.\n");
 		}
 	}
 	return 0;
@@ -54,13 +59,22 @@ STACK* commit(STACK* node, char * data){
 	STACK *temp = (STACK*)malloc(sizeof(STACK));
 	temp -> next = NULL;
 	strcpy( temp -> buf, data);
+	strcpy( temp -> id, genCommitId());
 	node -> next = temp;
 	return node;
 }
 void log(STACK* node){
+	node=node -> next;
 	while(node){
-		printf("%s\n", node -> buf);
+		printf("%s : %s\n", node -> id, node -> buf);
 		node=node -> next;
 	}
 }
-
+char* genCommitId(){
+	char str[] = "0123456789abcdef";
+	char *returnId = (char*)malloc(7);
+	for(int i=0;i<7;i++){
+		returnId[i] = str[rand()%(sizeof(str)-1)];
+	}
+	return returnId;
+}
