@@ -11,7 +11,7 @@ typedef struct STACK{
 }STACK;
 //git functions
 STACK* init();
-STACK* commit(STACK* node, char * data);
+void commit(STACK* node, char * data);
 void log(STACK* node);
 //functions
 char* genCommitId();
@@ -35,7 +35,7 @@ int main(){
 			}else{
 				printf("커밋 메시지를 입력해주세요\n");
 				gets(data); 
-				node = commit(node, data);
+				commit(node, data);
 			}
 		}
 		else if(strcmp(command, "git log")==0){
@@ -55,13 +55,15 @@ STACK* init(){
 	node->next = NULL;
 	return node;
 }
-STACK* commit(STACK* node, char * data){
+void commit(STACK* node, char * data){
 	STACK *temp = (STACK*)malloc(sizeof(STACK));
 	temp -> next = NULL;
 	strcpy( temp -> buf, data);
 	strcpy( temp -> id, genCommitId());
+	while(node -> next){
+		node=node -> next;
+	}
 	node -> next = temp;
-	return node;
 }
 void log(STACK* node){
 	node=node -> next;
