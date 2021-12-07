@@ -3,21 +3,43 @@
 #include<stdlib.h>
 char command[100];
 
+typedef struct User{
+	char username[100];
+	// 포인터 배열로 브랜치 struct 참조  
+	struct Branch* arr[3]; // branch 0, 1, 2, 3  
+	int nowBranch;
+}User;
+
+//branch
+typedef struct Branch{
+	char name[100];
+	struct STACK * next;
+}Branch;
+
 //stack
 typedef struct STACK{
 	char buf[100];
 	char id[7];
 	STACK * next;
 }STACK;
+
+
 //git functions
-STACK* init();
+void init();
 void commit(STACK* node, char * data);
 void log(STACK* node);
+//STACK* initBranch(STACK* node, char * data); 
+
 //functions
 char* genCommitId();
 
-int main(){
 
+//user
+User* nowuser = (User*)malloc(sizeof(User));
+//Branch * master;
+
+int main(){
+	
 	STACK * node = NULL;
 	
 	char data[100];
@@ -27,7 +49,14 @@ int main(){
 	while(strcmp(command, "exit")!=0){
 		gets(command);
 		if(strcmp(command, "git init")==0){
-			node = init();
+			init();
+			node = nowuser->arr[0]->next;
+			if(nowuser->username){
+				printf("git id 또는 닉네임을 입력해주세요: ");
+				gets(data);
+				strcpy(nowuser->username, data);
+			}
+			printf("현재 유저는 %s입니다.\n", nowuser->username); 
 		}
 		else if(strcmp(command, "git commit -m")==0){
 			if(!node){
@@ -44,16 +73,32 @@ int main(){
 			}else{
 				log(node);
 			}
-		}else{
+		}
+		else if(strcmp(command, "git branch")==0){
+			if(!node){
+				printf("먼저 git init을 해주세요.\n");
+			}else{
+				printf("새로운 브랜치의 이름을 입력해주세요\n");
+				STACK * branchNode = NULL;
+				gets(data); 
+//				initBranch(branchNode, data); 
+			}
+		}
+		else{
 			printf("없는 명령어이거나 명령어가 잘못되었습니다.\n");
 		}
 	}
 	return 0;
 }
-STACK* init(){
+void init(){
 	STACK *node = (STACK*)malloc(sizeof(STACK));
 	node->next = NULL;
-	return node;
+	//branch master 생성
+	Branch *master = (Branch*)malloc(sizeof(Branch));
+	strcpy(master->name , "master");
+	master->next =node;
+	nowuser->arr[0] = master;
+	nowuser->nowBranch = 0; 
 }
 void commit(STACK* node, char * data){
 	STACK *temp = (STACK*)malloc(sizeof(STACK));
@@ -67,8 +112,12 @@ void commit(STACK* node, char * data){
 }
 void log(STACK* node){
 	node=node -> next;
+//	printf("%s\n", nowuser->username);
 	while(node){
-		printf("%s : %s\n", node -> id, node -> buf);
+		printf("commit %s\n", node -> id);
+		printf("Author: %s <%s@gmail.com>\n", nowuser->username, nowuser->username);
+//		printf("Date: 12-07\n");
+		printf("\n	  %s\n\n", node->buf);
 		node=node -> next;
 	}
 }
