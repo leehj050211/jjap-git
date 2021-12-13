@@ -6,6 +6,7 @@
 #include<time.h> // 시간 -srand를 위한 
 #include<windows.h> //글자 색 변경 
 
+time_t timer;
 char command[100], fpTemp[100];
 FILE *fp_config, *fp_branch;
 
@@ -30,6 +31,8 @@ typedef struct STACK{
 	STACK * next;
 }STACK;
 
+struct tm* t;
+
 //git functions
 void init();
 void commit(STACK* node, char* data, char* commitId);
@@ -44,6 +47,8 @@ void saveConfig();
 void loadBranch(int n);
 void saveBranch();
 void setcolor(int color);
+char* nowDate();
+void pushString(char* a, char *arr);
 
 //user
 User* nowuser = (User*)malloc(sizeof(User));
@@ -102,7 +107,7 @@ int main(){
 			}else{
 				printf("커밋 메시지를 입력해주세요\n");
 				gets(data); 
-				commit(node, data, genCommitId());
+				commit(node, data ,genCommitId());
 			}
 		}
 		else if(strcmp(command, "git log")==0){
@@ -137,6 +142,9 @@ int main(){
 				}
 			}
 		}
+		else if(strcmp(command, "now")==0){
+			printf("%s", nowDate());
+		}
 		//예외 처리 추가 
 		else if(strcmp(command, "exit")==0){}
 		else{
@@ -163,11 +171,9 @@ void commit(STACK* node, char* data, char* commitId){
 	temp -> next = NULL;
 	strcpy( temp -> buf, data);
 	strcpy( temp -> id, commitId);
-	
 	while(node -> next){
 		node=node -> next;
 	}
-	
 	node -> next = temp;
 }
 
@@ -317,4 +323,52 @@ void checkout(char * data) {
 
 void setcolor(int color){
 	SetConsoleTextAttribute( GetStdHandle( STD_OUTPUT_HANDLE ), color);
+}
+
+char* nowDate(){
+	timer = time(NULL); // 1970년 1월 1일 0시 0분 0초부터 시작하여 현재까지의 초
+    t = localtime(&timer); // 포맷팅을 위해 구조체에 넣기
+    char returnDate[30];
+    int i;
+    printf("%d", t->tm_yday);
+    switch(t->tm_yday){
+    	case(0):
+    		pushString("sun ", returnDate);
+			break;
+		case(1):
+    		pushString("mon ", returnDate);
+			break;
+		case(2):
+    		pushString("tue ", returnDate);
+			break;
+		case(3):
+    		pushString("wed ", returnDate);
+			break;
+		case(4):
+    		pushString("thu ", returnDate);
+			break;
+		case(5):
+    		pushString("fri ", returnDate);
+			break;
+		case(6):
+    		pushString("sat ", returnDate);
+			break;
+		}
+//    printf("유닉스 타임 (Unix Time): %lld 초\n\n", timer); 
+//    printf("현재 년: %d\n", t->tm_year + 1900);
+//    printf("현재 월: %d\n", t->tm_mon + 1);
+//    printf("현재 일: %d\n", t->tm_mday);
+//    printf("현재 시: %d\n", t->tm_hour);
+//    printf("현재 분: %d\n", t->tm_min);
+//    printf("현재 초: %d\n", t->tm_sec);
+//    printf("현재 요일: %d\n", t->tm_wday); // 일=0, 월=1, 화=2, 수=3, 목=4, 금=5, 토=6
+//    printf("올해 몇 번째 날: %d\n", t->tm_yday); // 1월 1일은 0, 1월 2일은 1
+//    printf("서머타임 적용 여부: %d\n", t->tm_isdst); // 실시 중이면 양수, 미실시면 0, 실시 정보가 없으면 음수
+    return returnDate;
+}
+
+void pushString(char* a, char *arr){
+	for(int i=0; i<strlen(a); i++){
+		arr[i] = a[i];
+	}
 }
