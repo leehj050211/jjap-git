@@ -6,7 +6,6 @@
 #include<time.h> // 시간 -srand를 위한 
 #include<windows.h> //글자 색 변경 
 
-time_t timer;
 char command[100], fpTemp[100];
 FILE *fp_config, *fp_branch;
 
@@ -27,15 +26,20 @@ typedef struct Branch{
 //stack
 typedef struct STACK{
 	char buf[100];
-	char id[7];
+	char id[8];
+	char date[100];
 	STACK * next;
 }STACK;
 
 struct tm* t;
 
+char* returnDate = (char*)malloc(sizeof(char)*30);
+char* returnId = (char*)malloc(sizeof(char)*7);
+
+
 //git functions
 void init();
-void commit(STACK* node, char* data, char* commitId);
+void commit(STACK* node, char* data, char* nowDate, char* commitId);
 void log(STACK* node);
 void initBranch(STACK* node, char * data); 
 void checkout(char * data); 
@@ -107,7 +111,7 @@ int main(){
 			}else{
 				printf("커밋 메시지를 입력해주세요\n");
 				gets(data); 
-				commit(node, data ,genCommitId());
+				commit(node, data , nowDate(), genCommitId());
 			}
 		}
 		else if(strcmp(command, "git log")==0){
@@ -143,7 +147,7 @@ int main(){
 			}
 		}
 		else if(strcmp(command, "now")==0){
-			printf("%s", nowDate());
+			printf("%s\n", nowDate());
 		}
 		//예외 처리 추가 
 		else if(strcmp(command, "exit")==0){}
@@ -161,20 +165,22 @@ int main(){
 void init(){
 	STACK *node = (STACK*)malloc(sizeof(STACK));
 	node->next = NULL;
-	//branch master 생성
+	//branch master 생성  
 	nowuser->nowBranch = 0;
 	nowuser->n = 0; //전체 branch의 수
-	initBranch(node, "master");
+	initBranch(node, "master" );
 }
-void commit(STACK* node, char* data, char* commitId){
+void commit(STACK* node, char* data, char* nowDate, char* commitId){
 	STACK *temp = (STACK*)malloc(sizeof(STACK));
 	temp -> next = NULL;
-	strcpy( temp -> buf, data);
-	strcpy( temp -> id, commitId);
+	strcpy(temp -> buf, data);	
+	strcpy(temp -> date, nowDate);
+	strcpy(temp -> id, commitId);
+	
 	while(node -> next){
-		node=node -> next;
+		node = node -> next;
 	}
-	node -> next = temp;
+	node -> next = temp; 
 }
 
 void log(STACK* node){
@@ -184,20 +190,21 @@ void log(STACK* node){
 		printf("commit %s\n", node->id);
 		setcolor(7);
 		printf("Author: %s <%s@gmail.com>\n", nowuser->username, nowuser->username);
-//		printf("Date: 12-07\n");
+		printf("Date:   %s", node->date);
 		printf("\n	  %s\n\n", node->buf);
-		node=node -> next;
+		node=node->next;
 	}
 }
 
 char* genCommitId(){
+	int i;
 	char str[] = "0123456789abcdef";
 	srand(time(NULL)); //시드값을 time 으로 변경(완전히 랜덤) 
-	char *returnId = (char*)malloc(sizeof(char)*7);
-	for(int i=0;i<7;i++){
-
+//	char *returnId = (char*)malloc(sizeof(char)*7);
+	for(i=0;i<7;i++){
 		returnId[i] = str[rand()%(sizeof(str)-1)];
 	}
+	returnId[i]='\0'; 
 	return returnId;
 }
 
@@ -237,10 +244,11 @@ void saveConfig(){
 }
 
 void loadBranch(int n){
+	// 여기 하는 중  
 	printf("브랜치를 불러오는 중...\n");
 	STACK *node;
 	fp_branch = fopen("./.jjap-git/branch.ini", "r");
-	char dataTemp[100], idTemp[100];
+	char dataTemp[100], idTemp[100], dateTemp[100];
 	for(int i=0;i<n;i++){
 		while(!feof(fp_branch)){
 			fgets(fpTemp, sizeof(fpTemp), fp_branch);
@@ -262,12 +270,17 @@ void loadBranch(int n){
 				fseek(fp_branch, (strlen(fpTemp)+1)*-1, SEEK_CUR);// 파일 포인터를 원래대로 되돌림 
 			}
 			fgets(idTemp, sizeof(idTemp), fp_branch);
-			idTemp[strlen(idTemp)-1]='\0';// fgets에서 나오는 \n제거
+			fgets(dateTemp, sizeof(dateTemp), fp_branch);
 			fgets(dataTemp, sizeof(dataTemp), fp_branch);
+			
+			idTemp[strlen(idTemp)-1]='\0';// fgets에서 나오는 \n제거  
+			dateTemp[strlen(dateTemp)-1]='\0';// fgets에서 나오는 \n제거
 			dataTemp[strlen(dataTemp)-1]='\0';// fgets에서 나오는 \n제거
+			
 			printf("id: %s\n", idTemp);
+			printf("date: %s\n",dateTemp); 
 			printf("data: %s\n", dataTemp);
-			commit(node, dataTemp, idTemp);// 커밋불러오기 
+			commit(node, dataTemp, dateTemp, idTemp);// 커밋불러오기 
 		}
 	}
 	fclose(fp_branch);
@@ -285,8 +298,8 @@ void saveBranch(){
 		fprintf(fp_branch, "#BRANCH_START\n");// 브랜치 설정 시작 표시 
 		fprintf(fp_branch, "%s\n", nowuser->arr[nowuser->nowBranch]->name);// 브랜치 이름 저장 
 		while(node){
-			fprintf(fp_branch,"%s\n%s\n", node -> id, node -> buf);// 커밋내용 파일에 저장 
-			node=node -> next;
+			fprintf(fp_branch,"%s\n%s\n%s\n", node -> id, node->date ,node -> buf);// 커밋내용 파일에 저장 
+			node=node->next;
 		}
 		fprintf(fp_branch, "#BRANCH_END\n");// 브랜치 설정 끝 표시 
 	}
@@ -326,49 +339,97 @@ void setcolor(int color){
 }
 
 char* nowDate(){
+	time_t timer;
 	timer = time(NULL); // 1970년 1월 1일 0시 0분 0초부터 시작하여 현재까지의 초
     t = localtime(&timer); // 포맷팅을 위해 구조체에 넣기
-    char returnDate[30];
-    int i;
-    printf("%d", t->tm_yday);
-    switch(t->tm_yday){
+    returnDate[0] = '\0';
+    char text[20]={};  //int 형을 담기 위한 배열 
+	// 요일 push  
+    switch(t->tm_wday){
     	case(0):
-    		pushString("sun ", returnDate);
+    		pushString("Sun ", returnDate);
 			break;
 		case(1):
-    		pushString("mon ", returnDate);
+    		pushString("Mon ", returnDate);
 			break;
 		case(2):
-    		pushString("tue ", returnDate);
+    		pushString("Tue ", returnDate);
 			break;
 		case(3):
-    		pushString("wed ", returnDate);
+    		pushString("Wed ", returnDate);
 			break;
 		case(4):
-    		pushString("thu ", returnDate);
+    		pushString("Thu ", returnDate);
 			break;
 		case(5):
-    		pushString("fri ", returnDate);
+    		pushString("Fri ", returnDate);
 			break;
 		case(6):
-    		pushString("sat ", returnDate);
+    		pushString("Sat ", returnDate);
+			break;
+		default:
 			break;
 		}
-//    printf("유닉스 타임 (Unix Time): %lld 초\n\n", timer); 
-//    printf("현재 년: %d\n", t->tm_year + 1900);
-//    printf("현재 월: %d\n", t->tm_mon + 1);
-//    printf("현재 일: %d\n", t->tm_mday);
-//    printf("현재 시: %d\n", t->tm_hour);
-//    printf("현재 분: %d\n", t->tm_min);
-//    printf("현재 초: %d\n", t->tm_sec);
-//    printf("현재 요일: %d\n", t->tm_wday); // 일=0, 월=1, 화=2, 수=3, 목=4, 금=5, 토=6
-//    printf("올해 몇 번째 날: %d\n", t->tm_yday); // 1월 1일은 0, 1월 2일은 1
-//    printf("서머타임 적용 여부: %d\n", t->tm_isdst); // 실시 중이면 양수, 미실시면 0, 실시 정보가 없으면 음수
+	// x월 push 
+	switch(t->tm_mon + 1){
+    	case(1):
+    		pushString("Jan ", returnDate);
+			break;
+		case(2):
+    		pushString("Feb ", returnDate);
+			break;
+		case(3):
+    		pushString("Mar ", returnDate);
+			break;
+		case(4):
+    		pushString("Apr ", returnDate);
+			break;
+		case(5):
+    		pushString("May ", returnDate);
+			break;
+		case(6):
+    		pushString("Jun ", returnDate);
+			break;
+		case(7):
+    		pushString("Jul ", returnDate);
+			break;
+		case(8):
+    		pushString("Aug ", returnDate);
+			break;
+		case(9):
+    		pushString("Sep ", returnDate);
+			break;
+		case(10):
+    		pushString("Oct ", returnDate);
+			break;
+		case(11):
+    		pushString("Nov ", returnDate);
+			break;
+		case(12):
+    		pushString("Dec ", returnDate);
+			break;
+		default:
+			break;
+		}
+	// 문자열로 변환  
+	sprintf(text, "%d ", t->tm_mday);   
+	// 현재 일 push
+	pushString(text, returnDate);
+	
+	sprintf(text, "%d:%d:%d %d", t->tm_hour, t->tm_min, t->tm_sec, t->tm_year+1900);
+	// 시간:분:초 년도 push  
+	pushString(text, returnDate);
+	
+	//한국 표준시 push  
+	pushString(" +0900\0", returnDate);
+	
     return returnDate;
 }
 
-void pushString(char* a, char *arr){
-	for(int i=0; i<strlen(a); i++){
-		arr[i] = a[i];
+void pushString(char* a, char *arr){ //왼쪽에 넣을 문자열 push해주는 함수  
+	int i, j;
+//	printf("%d\n", strlen(arr)+strlen(a));
+	for(i=strlen(arr), j=0; i<strlen(arr)+strlen(a); i++, j++){
+		arr[i] = a[j];	
 	}
 }
