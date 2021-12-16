@@ -28,22 +28,31 @@ typedef struct STACK{
 	char buf[100];
 	char id[8];
 	char date[100];
+	struct FILES * files;
 	STACK * next;
 }STACK;
+
+//files
+typedef struct FILES{
+	char dir[100];
+	FILES * next;
+}FILES;
 
 struct tm* t;
 
 char* returnDate = (char*)malloc(sizeof(char)*30);
 char* returnId = (char*)malloc(sizeof(char)*7);
+FILES * files;
 
 
 //git functions
 void init();
+void add(char* dir);
 void commit(STACK* node, char* data, char* nowDate, char* commitId);
 void log(STACK* node);
 void logFind(STACK* node, char* data);
 void initBranch(STACK* node, char * data); 
-void checkout(char * data); 
+void checkout(char * data);
 
 //functions
 char* genCommitId();
@@ -61,8 +70,8 @@ User* nowuser = (User*)malloc(sizeof(User));
 //Branch * master;
 int main(){
 	
+	// 초기화
 	STACK * node = NULL;
-	// 초기화 
 	nowuser->nowBranch = 0;
 	nowuser->n = 0;
 	
@@ -109,10 +118,21 @@ int main(){
 		else if(strcmp(command, "git commit -m")==0){
 			if(!node){
 				printf("먼저 git init을 해주세요.\n");
+			}else if(!files->next){
+				printf("먼저 git add를 해주세요.\n");
 			}else{
 				printf("커밋 메시지를 입력해주세요\n");
 				gets(data); 
 				commit(node, data , nowDate(), genCommitId());
+			}
+		}
+		else if(strcmp(command, "git add")==0){
+			if(!node){
+				printf("먼저 git init을 해주세요.\n");
+			}else{
+				printf("add할 파일경로를 입력해주세요\n");
+				gets(data);
+				add(data);
 			}
 		}
 		else if(strcmp(command, "git log")==0){
@@ -175,6 +195,8 @@ int main(){
 void init(){
 	STACK *node = (STACK*)malloc(sizeof(STACK));
 	node->next = NULL;
+	files=(FILES *)malloc(sizeof(FILES));
+	files->next=NULL;
 	//branch master 생성  
 	nowuser->nowBranch = 0;
 	nowuser->n = 0; //전체 branch의 수
@@ -186,15 +208,31 @@ void commit(STACK* node, char* data, char* nowDate, char* commitId){
 	strcpy(temp -> buf, data);	
 	strcpy(temp -> date, nowDate);
 	strcpy(temp -> id, commitId);
+	temp -> files = files->next;
 	
 	while(node -> next){
 		node = node -> next;
 	}
-	node -> next = temp; 
+	node -> next = temp;
+	
+	files = (FILES *)malloc(sizeof(FILES));
+	files -> next = NULL;
+}
+
+void add(char* dir){
+	FILES *temp = files;
+	FILES *newFile = (FILES*)malloc(sizeof(FILES));
+	newFile -> next = NULL;
+	strcpy(newFile -> dir, dir);
+	while(temp -> next){
+		temp = temp -> next;
+	}
+	temp -> next = newFile;
 }
 
 void log(STACK* node){
 	node=node -> next;
+	FILES* files;
 	while(node){
 		setcolor(6);
 		printf("commit %s\n", node->id);
@@ -202,6 +240,12 @@ void log(STACK* node){
 		printf("Author: %s <%s@gmail.com>\n", nowuser->username, nowuser->username);
 		printf("Date:   %s", node->date);
 		printf("\n	  %s\n\n", node->buf);
+		files = node -> files;
+		printf("git add files\n");
+		while(files){
+			printf("%s\n", files->dir);
+			files=files->next;
+		}
 		node=node->next;
 	}
 }
@@ -278,7 +322,7 @@ void loadBranch(int n){
 	printf("브랜치를 불러오는 중...\n");
 	STACK *node;
 	fp_branch = fopen("./.jjap-git/branch.ini", "r");
-	char dataTemp[100], idTemp[100], dateTemp[100];
+	char dataTemp[100], idTemp[100], dateTemp[100], fileTemp[100];
 	for(int i=0;i<n;i++){
 		while(!feof(fp_branch)){
 			fgets(fpTemp, sizeof(fpTemp), fp_branch);
@@ -292,7 +336,7 @@ void loadBranch(int n){
 		branchNode->next = NULL;
 		initBranch(branchNode, fpTemp);// 브랜치 생성 
 		node = nowuser->arr[i]->next;
-		while(!feof(fp_branch)){// 커밋내용 불러오기 
+		while(!feof(fp_branch)){// 커밋내용 불러오기
 			fgets(fpTemp, sizeof(fpTemp), fp_branch);
 			if(strcmp(fpTemp, "#BRANCH_END\n")==0){// 브랜치 설정이 끝나면 
 				break;
@@ -310,6 +354,28 @@ void loadBranch(int n){
 			printf("id: %s\n", idTemp);
 			printf("date: %s\n",dateTemp); 
 			printf("data: %s\n", dataTemp);
+			files = (FILES *)malloc(sizeof(FILES));
+			files -> next = NULL;
+			while(!feof(fp_branch)){
+				fgets(fpTemp, sizeof(fpTemp), fp_branch);
+				if(strcmp(fpTemp, "#FILES_START\n")==0){
+					break;
+				}
+			}
+			while(!feof(fp_branch)){// 파일목록 불러오기 
+				fgets(fpTemp, sizeof(fpTemp), fp_branch);
+				if(strcmp(fpTemp, "#FILES_END\n")==0){// 정일목록이 끝나면 
+					break;
+				}else{// 파일목록 설정이 아직 남아있다면 
+					fseek(fp_branch, (strlen(fpTemp)+1)*-1, SEEK_CUR);// 파일 포인터를 원래대로 되돌림 
+				}
+				fgets(fileTemp, sizeof(fileTemp), fp_branch);
+				
+				fileTemp[strlen(fileTemp)-1]='\0';// fgets에서 나오는 \n제거  
+				
+				printf("file: %s\n", fileTemp);
+				add(fileTemp);
+			}
 			commit(node, dataTemp, dateTemp, idTemp);// 커밋불러오기 
 		}
 	}
@@ -321,6 +387,7 @@ void saveBranch(){
 	printf("브랜치 저장 중...\n");
 	fp_branch = fopen("./.jjap-git/branch.ini", "w");
 	STACK * node;
+	FILES * files;
 	for(int i=0;i<nowuser->n;i++){// 브랜치 갯수만큼 저장 
 		nowuser->nowBranch=i;
 		node = nowuser->arr[nowuser->nowBranch]->next;
@@ -329,6 +396,13 @@ void saveBranch(){
 		fprintf(fp_branch, "%s\n", nowuser->arr[nowuser->nowBranch]->name);// 브랜치 이름 저장 
 		while(node){
 			fprintf(fp_branch,"%s\n%s\n%s\n", node -> id, node->date ,node -> buf);// 커밋내용 파일에 저장 
+			files = node -> files;
+			fprintf(fp_branch, "#FILES_START\n");// 파일 목록 시작 표시 
+			while(files){
+				fprintf(fp_branch,"%s\n", files->dir);// file목록 파일에 저장 
+				files=files->next;
+			}
+			fprintf(fp_branch, "#FILES_END\n");// 파일 목록 끝 표시 
 			node=node->next;
 		}
 		fprintf(fp_branch, "#BRANCH_END\n");// 브랜치 설정 끝 표시 
