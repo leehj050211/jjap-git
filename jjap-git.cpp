@@ -26,7 +26,7 @@ typedef struct Branch{
 //stack
 typedef struct STACK{
 	char buf[100];
-	char id[8];
+	char id[41];
 	char date[100];
 	struct FILES * files;
 	STACK * next;
@@ -41,14 +41,14 @@ typedef struct FILES{
 struct tm* t;
 
 char* returnDate = (char*)malloc(sizeof(char)*30);
-char* returnId = (char*)malloc(sizeof(char)*7);
+char* returnId = (char*)malloc(sizeof(char)*40);
 FILES * files;
 
 
 //git functions
 void init();
 void add(char* dir);
-void commit(STACK* node, char* data, char* nowDate, char* commitId);
+void commit(STACK* node, char* data, char* nowDate, char* commitId, int fileCopy);
 void log(STACK* node);
 void logFind(STACK* node, char* data);
 void initBranch(STACK* node, char * data); 
@@ -63,6 +63,7 @@ void saveBranch();
 void setcolor(int color);
 char* nowDate();
 void pushString(char* a, char *arr);
+void copy(char *exist, char *anew);
 
 //user
 User* nowuser = (User*)malloc(sizeof(User));
@@ -75,7 +76,8 @@ int main(){
 	nowuser->nowBranch = 0;
 	nowuser->n = 0;
 	
-	mkdir(".jjap-git");// .jjap-git폴더 생성 
+	mkdir(".jjap-git");// .jjap-git폴더 생성
+	mkdir(".jjap-git/files");// .jjap-git 백업파일 폴더 생성
 	fp_config = fopen("./.jjap-git/config.ini", "r");
 	fgets(fpTemp, sizeof(fpTemp), fp_config);// 처음 실행인지 확인 
 	if(strcmp(fpTemp, "#INIT\n")==0){// 마지막에 무조건 \n이 포함됨  ㅇㅋ접수 
@@ -123,7 +125,7 @@ int main(){
 			}else{
 				printf("커밋 메시지를 입력해주세요\n");
 				gets(data); 
-				commit(node, data , nowDate(), genCommitId());
+				commit(node, data , nowDate(), genCommitId(), 1);
 			}
 		}
 		else if(strcmp(command, "git add")==0){
@@ -202,24 +204,67 @@ void init(){
 	nowuser->n = 0; //전체 branch의 수
 	initBranch(node, "master" );
 }
-void commit(STACK* node, char* data, char* nowDate, char* commitId){
-	STACK *temp = (STACK*)malloc(sizeof(STACK));
-	temp -> next = NULL;
-	strcpy(temp -> buf, data);	
-	strcpy(temp -> date, nowDate);
-	strcpy(temp -> id, commitId);
-	temp -> files = files->next;
+void commit(STACK* node, char* data, char* nowDate, char* commitId, int fileCopy){
+	// fileCopy값이 1이면 파일복사 사용
+	STACK *newNode = (STACK*)malloc(sizeof(STACK));
+	newNode -> next = NULL;
+	strcpy(newNode -> buf, data);	
+	strcpy(newNode -> date, nowDate);
+	strcpy(newNode -> id, commitId);
+	newNode -> files = files->next;
 	
 	while(node -> next){
 		node = node -> next;
 	}
-	node -> next = temp;
+	node -> next = newNode;
+	
+	if(fileCopy){
+		// 파일 복사 
+		FILES *temp = files;
+		char tempDir[100]="\0";
+		char targetDir[100]="\0";
+		while(temp -> next){
+			temp = temp -> next;
+			strcpy(tempDir, "\0");
+			strcpy(targetDir, "\0");
+			pushString(temp->dir, targetDir);
+			pushString(".jjap-git/files/", tempDir);
+			pushString(newNode->id, tempDir);
+			mkdir(tempDir);
+			char *ptr = strtok(targetDir, "/");
+		    while (ptr != NULL){
+		    	pushString("/", tempDir);
+		        pushString(ptr, tempDir);
+		        ptr = strtok(NULL, "/");
+		        if(ptr != NULL){
+		        	mkdir(tempDir);
+				}
+		    }
+		    strcpy(targetDir, "\0");
+			pushString(".jjap-git/files/", targetDir);
+			pushString(newNode->id, targetDir);
+			pushString("/", targetDir);
+			pushString(temp->dir, targetDir);
+			printf("+ %s\n", temp->dir);
+			
+			copy(temp->dir, targetDir);
+		}
+	}
+	node -> next = newNode;
 	
 	files = (FILES *)malloc(sizeof(FILES));
 	files -> next = NULL;
 }
 
 void add(char* dir){
+	FILE * add;
+	if((add=fopen(dir,"rb"))==NULL){
+		printf("add하려는 파일이 없습니다\n");
+		fclose(add);
+		return;
+	}else{
+		fclose(add);
+	}
 	FILES *temp = files;
 	FILES *newFile = (FILES*)malloc(sizeof(FILES));
 	newFile -> next = NULL;
@@ -232,7 +277,6 @@ void add(char* dir){
 
 void log(STACK* node){
 	node=node -> next;
-	FILES* files;
 	while(node){
 		setcolor(6);
 		printf("commit %s\n", node->id);
@@ -240,12 +284,6 @@ void log(STACK* node){
 		printf("Author: %s <%s@gmail.com>\n", nowuser->username, nowuser->username);
 		printf("Date:   %s", node->date);
 		printf("\n	  %s\n\n", node->buf);
-		files = node -> files;
-		printf("git add files\n");
-		while(files){
-			printf("%s\n", files->dir);
-			files=files->next;
-		}
 		node=node->next;
 	}
 }
@@ -275,7 +313,7 @@ char* genCommitId(){
 	char str[] = "0123456789abcdef";
 	srand(time(NULL)); //시드값을 time 으로 변경(완전히 랜덤) 
 //	char *returnId = (char*)malloc(sizeof(char)*7);
-	for(i=0;i<7;i++){
+	for(i=0;i<40;i++){
 		returnId[i] = str[rand()%(sizeof(str)-1)];
 	}
 	returnId[i]='\0'; 
@@ -376,7 +414,7 @@ void loadBranch(int n){
 				printf("file: %s\n", fileTemp);
 				add(fileTemp);
 			}
-			commit(node, dataTemp, dateTemp, idTemp);// 커밋불러오기 
+			commit(node, dataTemp, dateTemp, idTemp, 0);// 커밋불러오기 
 		}
 	}
 	fclose(fp_branch);
@@ -537,3 +575,21 @@ void pushString(char* a, char *arr){ //왼쪽에 넣을 문자열 push해주는 함수
 		arr[i] = a[j];	
 	}
 }
+
+void copy(char *exist, char *anew){
+	FILE *fexist, *fanew;
+	int fileByte;
+	if((fexist = fopen(exist, "rb"))==NULL)
+		return;
+	fanew = fopen(anew, "wb");
+	while(1){
+		fileByte = fgetc(fexist);
+		if(!feof(fexist))
+			fputc(fileByte, fanew);
+		else
+			break;
+	}
+	fclose(fexist);
+	fclose(fanew);
+}
+
