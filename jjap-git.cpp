@@ -41,6 +41,7 @@ char* returnId = (char*)malloc(sizeof(char)*7);
 void init();
 void commit(STACK* node, char* data, char* nowDate, char* commitId);
 void log(STACK* node);
+void logFind(STACK* node, char* data);
 void initBranch(STACK* node, char * data); 
 void checkout(char * data); 
 
@@ -121,6 +122,15 @@ int main(){
 				log(node);
 			}
 		}
+		else if(strcmp(command, "git log -find")==0){
+			if(!node){
+				printf("먼저 git init을 해주세요.\n");
+			}else{
+				printf("찾을 커밋내용을 입력해주세요\n");
+				gets(data); 
+				logFind(node, data);
+			}
+		}
 		else if(strcmp(command, "git branch")==0){
 			if(!node){
 				printf("먼저 git init을 해주세요.\n");
@@ -193,6 +203,26 @@ void log(STACK* node){
 		printf("Date:   %s", node->date);
 		printf("\n	  %s\n\n", node->buf);
 		node=node->next;
+	}
+}
+
+void logFind(STACK* node, char* data){
+	short flag=0;
+	node=node -> next;
+	while(node){
+		if(strstr(node->buf, data)){
+			flag=1;
+			setcolor(6);
+			printf("commit %s\n", node->id);
+			setcolor(7);
+			printf("Author: %s <%s@gmail.com>\n", nowuser->username, nowuser->username);
+			printf("Date:   %s", node->date);
+			printf("\n	  %s\n\n", node->buf);
+		}
+		node=node->next;
+	}
+	if(flag==0){
+		printf("찾을 커밋내용이 없습니다.\n");
 	}
 }
 
