@@ -402,8 +402,8 @@ void loadBranch(int n){
 			}
 			while(!feof(fp_branch)){// 파일목록 불러오기 
 				fgets(fpTemp, sizeof(fpTemp), fp_branch);
-				if(strcmp(fpTemp, "#FILES_END\n")==0){// 정일목록이 끝나면 
-					break;
+				if(strcmp(fpTemp, "#FILES_END\n")==0){// 파일목록이 끝나면 
+					break; 
 				}else{// 파일목록 설정이 아직 남아있다면 
 					fseek(fp_branch, (strlen(fpTemp)+1)*-1, SEEK_CUR);// 파일 포인터를 원래대로 되돌림 
 				}
